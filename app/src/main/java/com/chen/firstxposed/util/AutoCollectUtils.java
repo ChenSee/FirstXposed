@@ -1,4 +1,5 @@
-package com.handsomexi.firstxposed.util;
+package com.chen.firstxposed.util;
+
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -9,6 +10,10 @@ import android.widget.Toast;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URISyntaxException;
@@ -16,19 +21,26 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import de.robv.android.xposed.XSharedPreferences;
+import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
 
 
 public class AutoCollectUtils {
     private static List<String> canStealList = new ArrayList<>();
     private static List<String> canHelpList = new ArrayList<>();
+    private static String logList;
+
+
     public static List<String> whiteList;
-    private static Integer stealEnergy = 0,helpEnergy = 0;
+    private static Integer stealEnergy = 0, helpEnergy = 0;
     private static Integer pageCount = 0;
     private static Object curH5PageImpl;
     public static Object curH5Fragment;
     private static Method rpcCallMethod = null;
     public static Activity h5Activity;
     private static Toast toast;
+
 
     //自动获取有能量的好友信息
     public static void autoGetCanCollectUserIdList(final ClassLoader loader, String response) {
@@ -44,30 +56,29 @@ public class AutoCollectUtils {
             pageCount = 0;
             //如果发现已经解析完成了，如果有好友能量收取，就开始收取
 
-            if (canStealList.size() > 0 || canHelpList.size()>0) {
+            if (canStealList.size() > 0 || canHelpList.size() > 0) {
                 // 开始帮助收取每个用户快要消失的能量
                 for (int i = 0; i < canHelpList.size(); i++) {
-                    toast("正在帮助收取 "+(i+1)+"/"+canHelpList.size());
+                    toast("正在帮助收取 " + (i + 1) + "/" + canHelpList.size());
                     rpcCall_CanCollectEnergy(loader, canHelpList.get(i));
                 }
                 // 开始偷取每个用户的能量
                 for (int i = 0; i < canStealList.size(); i++) {
-                    toast("正在偷取 "+(i+1)+"/"+canStealList.size());
+                    toast("正在偷取 " + (i + 1) + "/" + canStealList.size());
                     rpcCall_CanCollectEnergy(loader, canStealList.get(i));
                 }
 
 
-
-                if(stealEnergy == 0 && helpEnergy == 0){
+                if (stealEnergy == 0 && helpEnergy == 0) {
                     toast("没有能量可以收取.");
-                }else if(stealEnergy !=0 && helpEnergy == 0){
+                } else if (stealEnergy != 0 && helpEnergy == 0) {
                     toast("偷取了" + stealEnergy + "g能量");
-                }else if (stealEnergy == 0){
-                    toast("帮助好友收取"+helpEnergy+"g能量");
-                }else {
-                    toast("一共收取了" + stealEnergy + "g能量\n帮助好友收取"+helpEnergy+"能量");
+                } else if (stealEnergy == 0) {
+                    toast("帮助好友收取" + helpEnergy + "g能量");
+                } else {
+                    toast("一共收取了" + stealEnergy + "g能量\n帮助好友收取" + helpEnergy + "能量");
                 }
-            }else {
+            } else {
                 toast("没有能量可以收取.");
             }
             clear();
@@ -81,7 +92,7 @@ public class AutoCollectUtils {
                 JSONObject jsonObject = new JSONObject(response);
                 JSONArray jsonArray = jsonObject.optJSONArray("bubbles");
                 String userName = jsonObject.getJSONObject("userEnergy").getString("displayName");
-                if(Config2.bean.stealWhite&&whiteList.contains(userName)) return;
+                if (Config2.bean.stealWhite && whiteList.contains(userName)) return;
                 if (jsonArray != null && jsonArray.length() > 0) {
                     for (int i = 0; i < jsonArray.length(); i++) {
                         JSONObject object = jsonArray.getJSONObject(i);
@@ -89,11 +100,12 @@ public class AutoCollectUtils {
                         boolean canHelpCollect = object.optBoolean("canHelpCollect");
                         String userId = object.optString("userId");
                         long id = object.optLong("id");
+                        XposedBridge.log("好友ID:" + String.valueOf(id));
                         if ("AVAILABLE".equals(collectStatus)) {
-                            rpcCall_StealEnergy(loader, userId, id,userName);
+                            rpcCall_StealEnergy(loader, userId, id, userName);
                         }
-                        if(Config2.bean.help&&canHelpCollect){
-                            rpcCall_HelpEnergy(loader, userId, id,userName);
+                        if (Config2.bean.help && canHelpCollect) {
+                            rpcCall_HelpEnergy(loader, userId, id, userName);
                         }
                     }
                 }
@@ -127,7 +139,7 @@ public class AutoCollectUtils {
                     if (b1 && !canStealList.contains(userId)) {
                         canStealList.add(userId);
                     }
-                    if(Config2.bean.help&&b2 && !canHelpList.contains(userId)){
+                    if (Config2.bean.help && b2 && !canHelpList.contains(userId)) {
                         canHelpList.add(userId);
                     }
                 }
@@ -182,7 +194,7 @@ public class AutoCollectUtils {
     }
 
     //偷取能量命令
-    private static void rpcCall_StealEnergy(final ClassLoader loader, String userId, Long bubbleId,String userName) {
+    private static void rpcCall_StealEnergy(final ClassLoader loader, String userId, Long bubbleId, String userName) {
         try {
             Method rpcCallMethod = getRpcCallMethod(loader);
             JSONArray jsonArray = new JSONArray();
@@ -199,7 +211,7 @@ public class AutoCollectUtils {
                 if (resp != null) {
                     Method method = resp.getClass().getMethod("getResponse");
                     String response = (String) method.invoke(resp, new Object[]{});
-                    parseCEResponse(response,0,userName);
+                    parseCEResponse(response, 0, userName);
                 }
             }
         } catch (Exception ignored) {
@@ -220,12 +232,12 @@ public class AutoCollectUtils {
 
             if (rpcCallMethod != null) {
                 String arrayString = new JSONArray().put(json).toString();
-                Object resp = rpcCallMethod.invoke(null, "alipay.antmember.forest.h5.forFriendCollectEnergy",arrayString,
-                        "", true, null, null,false, curH5PageImpl, 0, "", false, -1);
-                if(resp!=null){
+                Object resp = rpcCallMethod.invoke(null, "alipay.antmember.forest.h5.forFriendCollectEnergy", arrayString,
+                        "", true, null, null, false, curH5PageImpl, 0, "", false, -1);
+                if (resp != null) {
                     Method method = resp.getClass().getMethod("getResponse");
                     String response = (String) method.invoke(resp, new Object[]{});
-                    parseCEResponse(response,1,userName);
+                    parseCEResponse(response, 1, userName);
                 }
 
             }
@@ -235,7 +247,7 @@ public class AutoCollectUtils {
 
 
     private static Method getRpcCallMethod(ClassLoader loader) {
-        if(rpcCallMethod!=null)
+        if (rpcCallMethod != null)
             return rpcCallMethod;
         try {
             Field aF = curH5Fragment.getClass().getDeclaredField("a");
@@ -244,9 +256,9 @@ public class AutoCollectUtils {
             Field hF = viewHolder.getClass().getDeclaredField("h");
             hF.setAccessible(true);
             curH5PageImpl = hF.get(viewHolder);
-            Class<?> h5PageClazz = loader.loadClass("com.alipay.mobile.h5container.api.H5Page");
-            Class<?> jsonClazz = loader.loadClass("com.alibaba.fastjson.JSONObject");
-            Class<?> rpcClazz = loader.loadClass("com.alipay.mobile.nebulabiz.rpc.H5RpcUtil");
+            Class<?> h5PageClazz = XposedHelpers.findClass("com.alipay.mobile.h5container.api.H5Page", loader);
+            Class<?> jsonClazz = XposedHelpers.findClass("com.alibaba.fastjson.JSONObject", loader);
+            Class<?> rpcClazz = XposedHelpers.findClass("com.alipay.mobile.nebulabiz.rpc.H5RpcUtil", loader);
             if (curH5PageImpl != null) {
                 rpcCallMethod = rpcClazz.getMethod("rpcCall", String.class, String.class, String.class,
                         boolean.class, jsonClazz, String.class, boolean.class, h5PageClazz,
@@ -260,25 +272,25 @@ public class AutoCollectUtils {
     }
 
     //解析收取好友收取能量的返回数据
-    private static void parseCEResponse(String response,int type,String userName) {
+    private static void parseCEResponse(String response, int type, String userName) {
         if (!TextUtils.isEmpty(response) && response.contains("failedBubbleIds")) {
             try {
                 JSONObject jsonObject = new JSONObject(response);
                 JSONArray jsonArray = jsonObject.optJSONArray("bubbles");
                 for (int i = 0; i < jsonArray.length(); i++) {
                     int c = jsonArray.getJSONObject(i).optInt("collectedEnergy");
-                    if(c!=0&&Config2.bean.recEnergy){
+                    if (c != 0 && Config2.bean.recEnergy) {
                         JSONObject object = new JSONObject();
-                        object.put("time",new Date().getTime());
-                        object.put("user",userName);
-                        object.put("energy",c);
-                        object.put("type",type);
+                        object.put("time", new Date().getTime());
+                        object.put("user", userName);
+                        object.put("energy", c);
+                        object.put("type", type);
                         RecordUtil.log(object.toString());
                     }
-                    if (type == 0){
-                        stealEnergy+=c;
-                    }else{
-                        helpEnergy+=c;
+                    if (type == 0) {
+                        stealEnergy += c;
+                    } else {
+                        helpEnergy += c;
                     }
                 }
             } catch (Exception ignored) {
@@ -286,33 +298,33 @@ public class AutoCollectUtils {
         }
     }
 
-    private static void clear(){
+    private static void clear() {
         canStealList.clear();
         canHelpList.clear();
         stealEnergy = 0;
         helpEnergy = 0;
     }
 
-    private static void toast(String str){
-        if(h5Activity == null) return;
-        h5Activity.runOnUiThread(() -> {
-            if(toast == null)
-                toast = Toast.makeText(h5Activity,str,Toast.LENGTH_LONG);
-            else
-                toast.setText(str);
-            toast.show();
-        });
+    private static void toast(String str) {
+//        if (h5Activity == null) return;
+//        h5Activity.runOnUiThread(() -> {
+//            if (toast == null)
+//                toast = Toast.makeText(h5Activity, str, Toast.LENGTH_LONG);
+//            else
+//                toast.setText(str);
+//            toast.show();
+//        });
     }
 
     public static void startAlipay(final Context mContext) {
-        Toast.makeText(mContext, "正在打开蚂蚁森林",Toast.LENGTH_LONG).show();
+        Toast.makeText(mContext, "正在打开蚂蚁森林", Toast.LENGTH_LONG).show();
         try {
             Intent intent = Intent.parseUri("alipays://platformapi/startapp?appId=20000067&url=https://60000002.h5app.alipay.com/app/src/home.html",
                     Intent.URI_INTENT_SCHEME);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             mContext.startActivity(intent);
         } catch (URISyntaxException e) {
-            Toast.makeText(mContext,"打开失败",Toast.LENGTH_SHORT).show();
+            Toast.makeText(mContext, "打开失败", Toast.LENGTH_SHORT).show();
             e.printStackTrace();
         }
 

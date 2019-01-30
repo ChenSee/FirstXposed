@@ -1,8 +1,8 @@
 
--dontwarn com.handsomexi.**
--keep class com.handsomexi.firstxposed.bean.* { *; }
--keep class com.handsomexi.firstxposed.xposed.XPHook { *; }
--keep class com.handsomexi.firstxposed.activity.MainActivity { *; }
+-dontwarn com.chen.**
+-keep class com.chen.firstxposed.bean.* { *; }
+-keep class com.chen.firstxposed.xposed.XPHook { *; }
+-keep class com.chen.firstxposed.activity.MainActivity { *; }
 #图标
 -keep class com.github.mikephil.charting.** { *; }
 # # -------------------------------------------

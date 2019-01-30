@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.handsomexi.firstxposed">
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.chen.firstxposed">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <application
-        android:name=".Myapp"
         android:allowBackup="true"
         android:icon="@mipmap/ic"
-        android:label="ACEnergy"
+        android:label="ACEnergy2"
         android:roundIcon="@mipmap/ic"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">

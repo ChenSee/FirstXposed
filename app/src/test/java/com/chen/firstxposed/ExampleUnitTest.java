@@ -1,4 +1,4 @@
-package com.handsomexi.firstxposed;
+package com.chen.firstxposed;
 
 import org.junit.Test;
 
